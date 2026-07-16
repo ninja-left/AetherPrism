@@ -1,23 +1,48 @@
 # Aether Prism
 
-Aether Prism is a GUI wrapper for the Aether core binary.
+Aether Prism is an unofficial GUI wrapper for the Aether core.
 
-It does not reimplement the tunnel logic. It starts the `aether` executable, passes settings through environment variables, and shows logs and connection state in a GUI.
+This project does not reimplement the tunnel logic. The GUI collects settings, turns them into environment variables, starts the Aether process, watches stdout/stderr, and retries when the core exits with a reset/error rather than a clean shutdown.
 
-## What this repo does
+## Versioning
 
-- Cross-platform GUI in Flutter for Android, Linux, Windows, and macOS
-- Profile editor for Aether env vars
-- Binary path selection
-- Start / stop control
-- Live stdout/stderr log capture
-- JSON profile save/load
+This repository starts at semantic version **v1.0.0**.
 
-## How it works
+## What this first build does
 
-Aether already supports non-interactive startup through environment variables. The wrapper uses that contract instead of prompting in a terminal.
+- cross-platform Flutter UI
+- profile editor for the common Aether runtime flags
+- process launcher abstraction
+- live log view
+- start, stop, restart, and automatic retry
+- JSON export/import for profiles
+- clear separation between UI and backend launcher
 
-For example, the upstream docs list variables such as:
+## Runtime model
+
+Aether Prism assumes the Aether core can be started as a normal process with environment variables, and that it prints logs to stdout/stderr while running.
+
+If the core exits cleanly, the GUI stops retrying.
+If the core logs a connection reset / closed / error / timeout type failure, the GUI retries after a short backoff.
+
+## Platform notes
+
+Desktop is the main path: Linux, Windows, and macOS should be straightforward.
+
+Android is kept in the codebase through the same process abstraction, but the final runtime packaging still depends on how the Aether binary is delivered on-device. The GUI side is ready; the backend binary delivery method is the part that has to be matched to the target environment.
+
+## Build
+
+```bash
+flutter pub get
+flutter run
+```
+
+For release builds, use GitHub Actions.
+
+## Environment mapping
+
+The app maps UI values to the Aether runtime using env vars such as:
 
 - `AETHER_PROTOCOL`
 - `AETHER_SOCKS`
@@ -25,35 +50,14 @@ For example, the upstream docs list variables such as:
 - `AETHER_SCAN`
 - `AETHER_IP`
 - `AETHER_MASQUE_HTTP2`
+- `AETHER_MASQUE_H2_PEER`
 - `AETHER_WG_KEEPALIVE`
 - `AETHER_WG_STALL`
 - `AETHER_NO_WATCHDOG`
+- `AETHER_WG_NO_DATA_CHECK`
+- `AETHER_WG_NO_PROFILE_RETRY`
 - `AETHER_PEER`
+- `AETHER_WG_PEER`
 - `AETHER_CONFIG`
-
-## Build plan
-
-1. Run `flutter pub get`
-2. Let GitHub Actions or local Flutter tooling generate missing platform folders with:
-   `flutter create --platforms=android,linux,macos,windows .`
-3. Build per target:
-   - Android: `flutter build apk --release`
-   - Linux: `flutter build linux --release`
-   - Windows: `flutter build windows --release`
-   - macOS: `flutter build macos --release`
-
-## Android note
-
-Android is treated as a binary-launch wrapper too. The user points the app at the Aether binary or imports it into app storage, and the wrapper launches it with the chosen environment. That keeps the UI separate from the networking core.
-
-## Repo layout
-
-```text
-lib/
-  main.dart
-.github/workflows/
-  build.yml
-pubspec.yaml
-README.md
-analysis_options.yaml
-```
+- `AETHER_WG_CONFIG`
+- `AETHER_MASQUE_CONFIG`

@@ -5,93 +5,36 @@ on:
   pull_request:
 
 jobs:
-  android-linux:
-    runs-on: ubuntu-latest
+  flutter:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: apk
+          - os: ubuntu-latest
+            target: linux
+          - os: windows-latest
+            target: windows
+          - os: macos-latest
+            target: macos
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Generate platform folders
-        run: flutter create --platforms=android,linux .
-
+      - run: flutter pub get
+      - run: flutter test
       - name: Build Android APK
+        if: matrix.target == 'apk'
         run: flutter build apk --release
-
-      - name: Build Linux desktop
+      - name: Build Linux
+        if: matrix.target == 'linux'
         run: flutter build linux --release
-
-      - name: Upload Android artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: aether-prism-android-apk
-          path: build/app/outputs/flutter-apk/*.apk
-
-      - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: aether-prism-linux
-          path: build/linux/x64/release/bundle/**
-
-  windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Generate platform folders
-        run: flutter create --platforms=windows .
-
-      - name: Build Windows desktop
+      - name: Build Windows
+        if: matrix.target == 'windows'
         run: flutter build windows --release
-
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: aether-prism-windows
-          path: build/windows/x64/runner/Release/**
-
-  macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Generate platform folders
-        run: flutter create --platforms=macos .
-
-      - name: Build macOS desktop
+      - name: Build macOS
+        if: matrix.target == 'macos'
         run: flutter build macos --release
-
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: aether-prism-macos
-          path: build/macos/Build/Products/Release/*.app

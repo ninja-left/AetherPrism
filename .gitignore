@@ -2,9 +2,10 @@
 .packages
 .pub/
 build/
-.idea/
-.vscode/
-*.iml
+.flutter-plugins
+.flutter-plugins-dependencies
 android/.gradle/
 ios/Pods/
-.macos/
+macos/Flutter/ephemeral/
+windows/flutter/
+linux/flutter/ephemeral/
