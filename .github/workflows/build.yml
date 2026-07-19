@@ -1,8 +1,14 @@
-name: build
+name: build-and-release
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   flutter:
@@ -12,31 +18,138 @@ jobs:
         include:
           - os: ubuntu-latest
             target: apk
+            asset_name: AetherPrism-android.apk
           - os: ubuntu-latest
             target: linux
+            asset_name: AetherPrism-linux-x64.tar.xz
           - os: windows-latest
             target: windows
+            asset_name: AetherPrism-windows-x64.zip
           - os: macos-latest
             target: macos
+            asset_name: AetherPrism-macos.zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+
       - run: flutter pub get
+
       - name: Generate platform folders
         run: flutter create --platforms=android,linux,windows,macos .
+
+      - name: Install Linux desktop dependencies
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y             clang             cmake             ninja-build             pkg-config             libgtk-3-dev             libstdc++-12-dev
+
       - run: flutter test
+
       - name: Build Android APK
         if: matrix.target == 'apk'
         run: flutter build apk --release
+
+      - name: Stage Android artifact
+        if: matrix.target == 'apk'
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          cp build/app/outputs/flutter-apk/app-release.apk "release-assets/${{ matrix.asset_name }}"
+
       - name: Build Linux
         if: matrix.target == 'linux'
         run: flutter build linux --release
+
+      - name: Stage Linux artifact
+        if: matrix.target == 'linux'
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          tar -cJf "release-assets/${{ matrix.asset_name }}" -C build/linux/x64/release/bundle .
+
       - name: Build Windows
         if: matrix.target == 'windows'
         run: flutter build windows --release
+
+      - name: Stage Windows artifact
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release-assets | Out-Null
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath "release-assets\${{ matrix.asset_name }}"
+
       - name: Build macOS
         if: matrix.target == 'macos'
         run: flutter build macos --release
+
+      - name: Stage macOS artifact
+        if: matrix.target == 'macos'
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          APP_PATH=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' -print -quit)
+          if [ -z "$APP_PATH" ]; then
+            echo "No macOS app bundle found"
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "release-assets/${{ matrix.asset_name }}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: release-assets/${{ matrix.asset_name }}
+          if-no-files-found: error
+
+  release:
+    needs: flutter
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: release_version
+        shell: bash
+        run: |
+          version="$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Build release notes
+        shell: bash
+        run: |
+          {
+            echo "# Aether Prism v${{ steps.release_version.outputs.version }}"
+            echo
+            echo "Latest changes:"
+            echo "- Fixed the Flutter widget test so it matches PrismApp."
+            echo "- Stabilized the in-app log panel layout."
+            echo "- Restored CI platform-folder generation before builds."
+            echo "- Added Linux desktop build dependencies."
+            echo "- Restored artifact upload and prerelease publishing."
+            echo
+            echo "SHA-256:"
+            echo
+            find release-assets -type f | sort | while read -r file; do
+              sha256sum "$file"
+            done
+          } > release-notes.md
+
+      - name: Publish prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.release_version.outputs.version }}
+          name: v${{ steps.release_version.outputs.version }}
+          prerelease: true
+          body_path: release-notes.md
+          files: release-assets/**/*
