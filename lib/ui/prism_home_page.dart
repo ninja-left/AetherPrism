@@ -581,10 +581,13 @@ class _PrismHomePageState extends State<PrismHomePage> {
   Widget _logsPanel() {
     return _panel(
       title: 'Logs',
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 420),
+      child: SizedBox(
+        height: 420,
         child: ListView.builder(
           controller: _logScrollController,
+          primary: false,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: _logs.isEmpty ? 1 : _logs.length,
           itemBuilder: (BuildContext context, int index) {
             if (_logs.isEmpty) {
