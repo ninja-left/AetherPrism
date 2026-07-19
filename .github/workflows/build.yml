@@ -134,7 +134,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
-          path: release-assets/${{ matrix.asset_name }}
+          path: release-assets/**/*
           if-no-files-found: error
 
   release:
@@ -174,7 +174,8 @@ jobs:
             echo "SHA-256:"
             echo
             find release-assets -type f | sort | while read -r file; do
-              sha256sum "$file"
+              sha256="$(sha256sum "$file" | awk '{print $1}')"
+              printf '%s  %s\n' "$sha256" "$(basename "$file")"
             done
           } > release-notes.md
 
