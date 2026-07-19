@@ -25,6 +25,8 @@ jobs:
         with:
           channel: stable
       - run: flutter pub get
+      - name: Generate platform folders
+        run: flutter create --platforms=android,linux,windows,macos .
       - run: flutter test
       - name: Build Android APK
         if: matrix.target == 'apk'
