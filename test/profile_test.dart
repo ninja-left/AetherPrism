@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:aether_prism/models/aether_profile.dart';
+import 'package:aetherprism/models/aether_profile.dart';
 
 void main() {
   test('profile env mapping includes the core flags', () {

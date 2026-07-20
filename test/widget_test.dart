@@ -1,4 +1,4 @@
-import 'package:aether_prism/ui/prism_app.dart';
+import 'package:aetherprism/ui/prism_app.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
