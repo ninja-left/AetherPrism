@@ -5,6 +5,7 @@
 ### v1.0.6 — Naming and identity
 - Rename the app/package identity from `aether_prism` to `aetherprism` / `Aether Prism`.
 - Replace leftover internal identifiers, file names, and test imports that still reference the old package name.
+- Force the Android package id away from the `com.example` default in CI.
 - Keep everything else stable so this release is only about identity cleanup.
 
 ### v1.0.7 — Shipped binary integration
