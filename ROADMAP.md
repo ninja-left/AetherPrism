@@ -1,14 +1,34 @@
 # Roadmap
-#### GH Actions
+
+## Milestones
+
+### v1.0.6 — Naming and identity
+- Rename the app/package identity from `aether_prism` to `aetherprism` / `Aether Prism`.
+- Replace leftover internal identifiers, file names, and test imports that still reference the old package name.
+- Keep everything else stable so this release is only about identity cleanup.
+
+### v1.0.7 — Shipped binary integration
+- Use the shipped Aether binary instead of asking for a binary path.
+- Finish the binary delivery flow first, then wire the UI to it.
+
+### v1.0.8 — Control panel cleanup
+- Make the control panel (Start, Stop, etc) bolder and place it above the config options.
+- Treat the current options area as an advanced section.
+
+### v1.0.9 — Release pipeline polish
+- Sort uploaded artifacts by platform and arch name.
+- Build and release packages for each arch the same way Aether does.
+- Ship each package with its platform-specific Aether binary.
+
+## GH Actions
 - [X] Make release changes dynamic; read from CHANGELOG.md
 - [ ] Sort uploaded artifacts by platform and arch name
 - [ ] Build and release packages for each arch (same way aether is)
-- [ ] Ship each package with it's platform specific aether binary[^1]
+- [ ] Ship each package with its platform specific aether binary[^1]
 
-#### UI/UX
+## UI/UX
 - [X] Use the icons under `asset/icon`
-- [ ] Use AetherPrism instead of aether_prism as the app and package name
-  - Don't use com.example.aether_prism as the package name (E.x apk package name); use com.njl.aetherprism instead
+- [X] Use `AetherPrism` instead of `aether_prism` as the app and package name
 - [ ] Use the shipped aether binary instead of entering aether binary path[^1]
 - [ ] Make the control panel (Start, Stop, etc) bolder and above the config options (treat the options as an advanced options/section)
 
