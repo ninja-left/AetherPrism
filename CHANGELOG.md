@@ -1,3 +1,7 @@
+## v1.0.6
+- Renamed the package identity from `aether_prism` to `aetherprism`.
+- Kept the visible app name as Aether Prism and cleaned up the remaining identity references.
+
 ## v1.0.5
 - Added changelog-driven release notes so GitHub Actions no longer needs manual body edits.
 - Added automated launcher icon generation for Android, macOS, and Windows from `assets/icons/app_icon.png`.
