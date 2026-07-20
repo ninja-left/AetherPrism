@@ -40,6 +40,39 @@ flutter run
 
 For release builds, use GitHub Actions.
 
+## Android release signing in GitHub Actions
+
+The Android package id is fixed in CI as `io.github.aetherprism`, so it does not fall back to the `com.example` default anymore.
+
+For release APKs, set these GitHub repository secrets once:
+
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+Create the keystore locally, then base64-encode it and store the encoded text in `ANDROID_KEYSTORE_BASE64`. The same keystore must be reused for every future release, or Android will see the app as signed by a different key.
+
+Example keystore command:
+
+```bash
+keytool -genkeypair -v -keystore upload-keystore.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+```
+
+On Linux:
+
+```bash
+base64 -w 0 upload-keystore.jks
+```
+
+On macOS:
+
+```bash
+base64 upload-keystore.jks | tr -d '\n'
+```
+
+The workflow will build an unsigned debug APK on pull requests if those secrets are not available, and it will build signed release APKs on `main` once the secrets are present.
+
 ## Environment mapping
 
 The app maps UI values to the Aether runtime using env vars such as:
