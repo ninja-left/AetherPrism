@@ -10,6 +10,14 @@ on:
 permissions:
   contents: read
 
+env:
+  ANDROID_APPLICATION_ID: io.github.aetherprism
+  ANDROID_NAMESPACE: io.github.aetherprism
+  ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+  ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+  ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+  ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
 jobs:
   flutter:
     strategy:
@@ -44,6 +52,12 @@ jobs:
       - name: Generate launcher icons
         run: dart run flutter_launcher_icons
 
+      - name: Configure Android identity and signing
+        if: matrix.target == 'apk'
+        shell: bash
+        run: |
+          python3 tool/ci/configure_android.py
+
       - name: Copy Linux app icon
         if: matrix.target == 'linux'
         shell: bash
@@ -64,33 +78,31 @@ jobs:
 
       - run: flutter test
 
-      - name: Build Android universal APK
-        if: matrix.target == 'apk'
-        run: flutter build apk --release
-
-      - name: Stage Android universal artifact
+      - name: Build Android package
         if: matrix.target == 'apk'
         shell: bash
         run: |
           mkdir -p release-assets
-          cp build/app/outputs/flutter-apk/app-release.apk "release-assets/${{ matrix.asset_name }}"
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            if [[ -z "${ANDROID_KEYSTORE_BASE64}" || -z "${ANDROID_KEYSTORE_PASSWORD}" || -z "${ANDROID_KEY_ALIAS}" || -z "${ANDROID_KEY_PASSWORD}" ]]; then
+              echo "Missing Android signing secrets. Set ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD in GitHub Secrets."
+              exit 1
+            fi
+            flutter build apk --release
+            cp build/app/outputs/flutter-apk/app-release.apk "release-assets/${{ matrix.asset_name }}"
 
-      - name: Build Android split APKs
-        if: matrix.target == 'apk'
-        run: flutter build apk --release --split-per-abi
-
-      - name: Stage Android split artifacts
-        if: matrix.target == 'apk'
-        shell: bash
-        run: |
-          mkdir -p release-assets
-          for file in build/app/outputs/flutter-apk/app-*-release.apk; do
-            [ -e "$file" ] || continue
-            base="$(basename "$file")"
-            abi="${base#app-}"
-            abi="${abi%-release.apk}"
-            cp "$file" "release-assets/AetherPrism-android-${abi}.apk"
-          done
+            flutter build apk --release --split-per-abi
+            for file in build/app/outputs/flutter-apk/app-*-release.apk; do
+              [ -e "$file" ] || continue
+              base="$(basename "$file")"
+              abi="${base#app-}"
+              abi="${abi%-release.apk}"
+              cp "$file" "release-assets/AetherPrism-android-${abi}.apk"
+            done
+          else
+            flutter build apk --debug
+            cp build/app/outputs/flutter-apk/app-debug.apk "release-assets/AetherPrism-android-debug.apk"
+          fi
 
       - name: Build Linux
         if: matrix.target == 'linux'
