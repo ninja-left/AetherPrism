@@ -55,6 +55,10 @@ extension AetherBinaryTargetSpec on AetherBinaryTarget {
       };
 
   String get supportDirName => name;
+}
+
+final class AetherBinaryPlatform {
+  const AetherBinaryPlatform._();
 
   static AetherBinaryTarget current() {
     if (Platform.isLinux) {
