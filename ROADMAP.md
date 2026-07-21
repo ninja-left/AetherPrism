@@ -16,6 +16,8 @@
 ### v1.0.8 — Control panel cleanup
 - Make the control panel (Start, Stop, etc) bolder and place it above the config options.
 - Treat the current options area as an advanced section.
+#### Minor patches
+- The aether fetch script fails fully if it hits a 403 rate limit; Make it wait 6 seconds and retry for 2 times
 
 ### v1.0.9 — Release pipeline polish
 - Sort uploaded artifacts by platform and arch name.
@@ -24,9 +26,9 @@
 
 ## GH Actions
 - [X] Make release changes dynamic; read from CHANGELOG.md
+- [X] Ship each package with its platform specific aether binary[^1]
 - [ ] Sort uploaded artifacts by platform and arch name
 - [ ] Build and release packages for each arch (same way aether is)
-- [ ] Ship each package with its platform specific aether binary[^1]
 
 ## UI/UX
 - [X] Use the icons under `asset/icon`
