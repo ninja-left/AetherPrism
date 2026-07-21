@@ -1,3 +1,8 @@
+## v1.0.7
+- Switched the launcher to a shipped-binary model instead of asking for a binary path.
+- Added a CI helper that downloads the latest upstream Aether release asset for each supported build target and stages it into Flutter assets.
+- Added runtime extraction of the bundled binary so the app can launch the shipped core directly.
+
 ## v1.0.6
 - Renamed the package identity from `aether_prism` to `aetherprism`.
 - Kept the visible app name as Aether Prism and cleaned up the remaining identity references.
