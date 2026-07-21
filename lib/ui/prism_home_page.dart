@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../models/aether_profile.dart';
+import '../services/aether_binary_resolver.dart';
 import '../services/aether_launcher.dart';
 import '../services/local_process_launcher.dart';
 import '../services/profile_store.dart';
@@ -19,9 +22,8 @@ class _PrismHomePageState extends State<PrismHomePage> {
   final AetherLauncher _launcher = LocalProcessLauncher();
   final ProfileStore _profileStore = ProfileStore();
   final RetrySupervisor _retrySupervisor = RetrySupervisor();
+  final AetherBinaryResolver _binaryResolver = const AetherBinaryResolver();
 
-  final TextEditingController _binaryController =
-      TextEditingController(text: 'aether');
   final TextEditingController _configController =
       TextEditingController(text: 'aether.toml');
   final TextEditingController _socksController =
@@ -50,6 +52,8 @@ class _PrismHomePageState extends State<PrismHomePage> {
   bool _stopRequested = false;
   bool _autoRetryEnabled = true;
   String _status = 'Idle';
+  String _binaryLabel = 'Bundled binary';
+  String _binaryAsset = 'assets/runtime/...';
   int? _pid;
 
   StreamSubscription<String>? _logSub;
@@ -59,12 +63,22 @@ class _PrismHomePageState extends State<PrismHomePage> {
   @override
   void initState() {
     super.initState();
+    _refreshBinaryMetadata();
     _restoreLastProfile();
+  }
+
+  Future<void> _refreshBinaryMetadata() async {
+    final String label = _binaryResolver.describeCurrentTarget();
+    final String asset = _binaryResolver.describeCurrentAsset();
+    if (!mounted) return;
+    setState(() {
+      _binaryLabel = label;
+      _binaryAsset = asset;
+    });
   }
 
   @override
   void dispose() {
-    _binaryController.dispose();
     _configController.dispose();
     _socksController.dispose();
     _peerController.dispose();
@@ -118,9 +132,12 @@ class _PrismHomePageState extends State<PrismHomePage> {
       masqueH2Peer: _masquePeerController.text.trim().isEmpty
           ? null
           : _masquePeerController.text.trim(),
-      peer: _peerController.text.trim().isEmpty ? null : _peerController.text.trim(),
-      configPath:
-          _configController.text.trim().isEmpty ? null : _configController.text.trim(),
+      peer: _peerController.text.trim().isEmpty
+          ? null
+          : _peerController.text.trim(),
+      configPath: _configController.text.trim().isEmpty
+          ? null
+          : _configController.text.trim(),
       wgKeepalive: int.tryParse(_keepaliveController.text.trim()),
       wgStall: int.tryParse(_stallController.text.trim()),
       noWatchdog: _noWatchdog,
@@ -177,7 +194,7 @@ class _PrismHomePageState extends State<PrismHomePage> {
     _stopRequested = false;
     setState(() {
       _running = true;
-      _status = 'Starting...';
+      _status = 'Resolving bundled binary...';
       if (preserveRetryState) {
         _logs.add('--- retrying Aether ---');
       }
@@ -186,10 +203,11 @@ class _PrismHomePageState extends State<PrismHomePage> {
     await _saveProfile();
 
     try {
+      final File executable = await _binaryResolver.resolveExecutable();
       final AetherProfile profile = _buildProfile();
       final LaunchResult result = await _launcher.start(
         LaunchRequest(
-          executablePath: _binaryController.text.trim(),
+          executablePath: executable.path,
           environment: profile.toEnvironment(),
           workingDirectory: '.',
         ),
@@ -298,7 +316,7 @@ class _PrismHomePageState extends State<PrismHomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aether Prism v1.0.0'),
+        title: const Text('Aether Prism v1.0.7'),
         actions: <Widget>[
           Center(
             child: Padding(
@@ -366,11 +384,16 @@ class _PrismHomePageState extends State<PrismHomePage> {
           _panel(
             title: 'Launcher',
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                _field(
-                  controller: _binaryController,
-                  label: 'Aether binary path',
-                  hint: 'aether',
+                Text(
+                  'Bundled binary: $_binaryLabel',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 4),
+                SelectableText(
+                  _binaryAsset,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 12),
                 _field(
@@ -571,7 +594,7 @@ class _PrismHomePageState extends State<PrismHomePage> {
           Text('Scan: ${profile.scanMode.label}'),
           Text('IP: ${profile.ipMode.label}'),
           Text('SOCKS: ${profile.socksAddress}'),
-          Text('Binary: ${_binaryController.text.trim()}'),
+          Text('Binary: $_binaryLabel'),
           Text('PID: ${_pid?.toString() ?? "-"}'),
         ],
       ),
@@ -617,7 +640,10 @@ class _PrismHomePageState extends State<PrismHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 12),
             child,
           ],

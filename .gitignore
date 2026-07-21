@@ -9,3 +9,6 @@ ios/Pods/
 macos/Flutter/ephemeral/
 windows/flutter/
 linux/flutter/ephemeral/
+
+assets/runtime/*
+!assets/runtime/.gitkeep
