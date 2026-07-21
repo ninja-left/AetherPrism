@@ -1,6 +1,6 @@
 # Aether Prism
 
-Aether Prism is an unofficial GUI wrapper for the Aether core.
+Aether Prism is an unofficial GUI wrapper for the [Aether core](https://github.com/CluvexStudio/Aether).
 
 This project does not reimplement the tunnel logic. The GUI collects settings, turns them into environment variables, starts the Aether process, watches stdout/stderr, and retries when the core exits with a reset/error rather than a clean shutdown.
 
