@@ -6,13 +6,14 @@ This project does not reimplement the tunnel logic. The GUI collects settings, t
 
 ## Versioning
 
-This repository is currently on semantic version **v1.0.6**.
+This repository is currently on semantic version **v1.0.7**.
 
 ## What this first build does
 
 - cross-platform Flutter UI
 - profile editor for the common Aether runtime flags
 - process launcher abstraction
+- bundled upstream Aether binary resolution
 - live log view
 - start, stop, restart, and automatic retry
 - JSON export/import for profiles
@@ -29,7 +30,7 @@ If the core logs a connection reset / closed / error / timeout type failure, the
 
 Desktop is the main path: Linux, Windows, and macOS should be straightforward.
 
-Android is kept in the codebase through the same process abstraction, but the final runtime packaging still depends on how the Aether binary is delivered on-device. The GUI side is ready; the backend binary delivery method is the part that has to be matched to the target environment.
+Android is now handled the same way: the release workflow downloads the matching upstream Aether binary into bundled assets, and the app extracts the correct one for the current ABI at runtime.
 
 ## Build
 
@@ -38,7 +39,7 @@ flutter pub get
 flutter run
 ```
 
-For release builds, use GitHub Actions.
+For release builds, use GitHub Actions. The workflow fetches the latest upstream Aether release asset for each platform and stages it into `assets/runtime/` before packaging.
 
 ## Android release signing in GitHub Actions
 
@@ -71,7 +72,7 @@ On macOS:
 base64 upload-keystore.jks | tr -d '\n'
 ```
 
-The workflow will build an unsigned debug APK on pull requests if those secrets are not available, and it will build signed release APKs on `main` once the secrets are present.
+The workflow will build an unsigned debug APK on pull requests if those secrets are not available, and it will build signed release APKs on `main` once the secrets are present. It also downloads the matching upstream Aether binary so the packaged app ships with the core binary instead of asking for a path.
 
 ## Environment mapping
 

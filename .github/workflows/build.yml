@@ -30,7 +30,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.pull_request.title }}" =~ ^Update\ v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "run_build=true" >> "$GITHUB_OUTPUT"
           else
-            echo "run_build=false" >> $"GITHUB_OUTPUT"
+            echo "run_build=false" >> "$GITHUB_OUTPUT"
           fi
   flutter:
     needs: gate
@@ -74,6 +74,34 @@ jobs:
           restore-keys: |
             $${{ runner.os }}-gradle-
 
+      - name: Stage bundled Aether binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets/runtime
+          case "${{ matrix.target }}" in
+            apk)
+              python tool/ci/fetch_aether_binary.py --platform android --arch arm64 --output assets/runtime/android/arm64-v8a/aether
+              python tool/ci/fetch_aether_binary.py --platform android --arch armv7 --output assets/runtime/android/armeabi-v7a/aether
+              python tool/ci/fetch_aether_binary.py --platform android --arch x86_64 --output assets/runtime/android/x86_64/aether
+              ;;
+            linux)
+              python tool/ci/fetch_aether_binary.py --platform linux --arch x86_64 --output assets/runtime/linux/x86_64/aether
+              ;;
+            windows)
+              python tool/ci/fetch_aether_binary.py --platform windows --arch x86_64 --output assets/runtime/windows/x86_64/aether.exe
+              ;;
+            macos)
+              ARCH="$(uname -m)"
+              case "$ARCH" in
+                arm64) AETHER_ARCH=arm64 ;;
+                x86_64) AETHER_ARCH=x86_64 ;;
+                *) echo "Unsupported macOS architecture: $ARCH"; exit 1 ;;
+              esac
+              python tool/ci/fetch_aether_binary.py --platform macos --arch "$AETHER_ARCH" --output "assets/runtime/macos/$AETHER_ARCH/aether"
+              ;;
+          esac
+
       - run: flutter pub get
 
       - name: Generate platform folders
@@ -86,7 +114,7 @@ jobs:
         if: matrix.target == 'apk'
         shell: bash
         run: |
-          python3 tool/ci/configure_android.py
+          python tool/ci/configure_android.py
 
       - name: Copy Linux app icon
         if: matrix.target == 'linux'
