@@ -55,9 +55,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        id: flutter
         with:
           channel: stable
+          cache: true
+          pub-cache: true
+
+      - name: Cache Gradle
+        if: matrix.target == 'apk'
+        uses: actions/cache@v5.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/*.gradle*') }}
+          restore-keys: |
+            $${{ runner.os }}-gradle-
 
       - run: flutter pub get
 
