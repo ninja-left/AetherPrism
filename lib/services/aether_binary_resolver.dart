@@ -19,7 +19,7 @@ class AetherBinaryResolver {
       }
     }
 
-    final AetherBinaryTarget target = AetherBinaryTarget.current();
+    final AetherBinaryTarget target = AetherBinaryPlatform.current();
     final Directory supportDir = await getApplicationSupportDirectory();
     final Directory runtimeDir = Directory(
       '${supportDir.path}${Platform.pathSeparator}aetherprism-runtime${Platform.pathSeparator}${target.supportDirName}',
@@ -68,7 +68,7 @@ class AetherBinaryResolver {
     }
   }
 
-  String describeCurrentTarget() => AetherBinaryTarget.current().label;
+  String describeCurrentTarget() => AetherBinaryPlatform.current().label;
 
-  String describeCurrentAsset() => AetherBinaryTarget.current().assetPath;
+  String describeCurrentAsset() => AetherBinaryPlatform.current().assetPath;
 }
