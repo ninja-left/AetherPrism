@@ -252,11 +252,11 @@ jobs:
             done
           } > release-notes.md
 
-      - name: Publish prerelease
+      - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.release_version.outputs.version }}
           name: v${{ steps.release_version.outputs.version }}
-          prerelease: true
+          prerelease: false
           body_path: release-notes.md
           files: release-assets/**/*
