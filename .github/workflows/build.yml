@@ -26,7 +26,8 @@ jobs:
       - id: check
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.event.head_commit.message }}" =~ ^Update\ v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+          msg=$(${{ github.event.head_commit.message }} | head -n 1)
+          if [[ "${{ github.event_name }}" == "push" && "$msg" =~ ^Update\ v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
             echo "run_build=true" >> "$GITHUB_OUTPUT"
           else
             echo "run_build=false" >> "$GITHUB_OUTPUT"
