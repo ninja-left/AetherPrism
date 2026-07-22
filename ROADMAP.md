@@ -18,6 +18,8 @@
 - Treat the current options area as an advanced section.
 #### Minor patches
 - The aether fetch script fails fully if it hits a 403 rate limit; Make it wait 6 seconds and retry for 2 times
+- Upgrade the used actions versions to avoid Node.js deprecated warnings
+- Log all activities in the log box too instead of just using status bar
 
 ### v1.0.9 — Release pipeline polish
 - Sort uploaded artifacts by platform and arch name.
