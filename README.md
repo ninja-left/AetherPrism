@@ -6,7 +6,7 @@ This project does not reimplement the tunnel logic. The GUI collects settings, t
 
 ## Versioning
 
-This repository is currently on semantic version **v1.0.7**.
+This repository is currently on semantic version **v1.0.8**.
 
 ## What this first build does
 

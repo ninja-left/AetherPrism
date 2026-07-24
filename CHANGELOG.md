@@ -1,3 +1,9 @@
+## v1.0.8
+- Moved the primary Start/Stop controls to the top of the launcher panel so they are easier to reach.
+- Mirrored status updates and launcher errors into the log box so the full messages stay visible.
+- Upgraded GitHub Actions references to newer major versions to avoid Node.js deprecation warnings.
+- Changed the 403 retry delay to 6 seconds with two retries before giving up.
+
 ## v1.0.7
 - Switched the launcher to a shipped-binary model instead of asking for a binary path.
 - Added a CI helper that downloads the latest upstream Aether release asset for each supported build target and stages it into Flutter assets.
