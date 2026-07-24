@@ -93,15 +93,56 @@ class _PrismHomePageState extends State<PrismHomePage> {
     super.dispose();
   }
 
+  void _clearLogs() {
+    if (!mounted) {
+      _logs.clear();
+      return;
+    }
+    setState(() {
+      _logs.clear();
+    });
+  }
+
+  void _appendLog(String line) {
+    if (!mounted) {
+      _logs.add(line);
+      return;
+    }
+    setState(() {
+      _logs.add(line);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_logScrollController.hasClients) {
+        return;
+      }
+      _logScrollController.animateTo(
+        _logScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  void _setStatus(String value, {bool mirrorToLog = true, String tag = 'status'}) {
+    if (mounted) {
+      setState(() {
+        _status = value;
+      });
+    } else {
+      _status = value;
+    }
+    if (mirrorToLog) {
+      _appendLog('[$tag] $value');
+    }
+  }
+
   Future<void> _restoreLastProfile() async {
     final AetherProfile? profile = await _profileStore.load();
     if (!mounted || profile == null) {
       return;
     }
     _applyProfile(profile);
-    setState(() {
-      _status = 'Profile loaded';
-    });
+    _setStatus('Profile loaded');
   }
 
   void _applyProfile(AetherProfile profile) {
@@ -152,9 +193,7 @@ class _PrismHomePageState extends State<PrismHomePage> {
     if (!mounted) {
       return;
     }
-    setState(() {
-      _status = 'Profile saved';
-    });
+    _setStatus('Profile saved');
   }
 
   Future<void> _exportProfile() async {
@@ -163,22 +202,16 @@ class _PrismHomePageState extends State<PrismHomePage> {
     if (!mounted) {
       return;
     }
-    setState(() {
-      _status = 'Profile JSON copied to import box';
-    });
+    _setStatus('Profile JSON copied to import box');
   }
 
   Future<void> _importProfile() async {
     try {
       final AetherProfile profile = _profileStore.importJson(_importController.text);
-      setState(() {
-        _applyProfile(profile);
-        _status = 'Profile imported';
-      });
+      _applyProfile(profile);
+      _setStatus('Profile imported');
     } catch (e) {
-      setState(() {
-        _status = 'Import failed: $e';
-      });
+      _setStatus('Import failed: $e', tag: 'error');
     }
   }
 
@@ -187,18 +220,18 @@ class _PrismHomePageState extends State<PrismHomePage> {
 
     if (!preserveRetryState) {
       _retrySupervisor.reset();
-      _logs.clear();
+      _clearLogs();
     } else {
       _retrySupervisor.clearLogs();
     }
     _stopRequested = false;
     setState(() {
       _running = true;
-      _status = 'Resolving bundled binary...';
-      if (preserveRetryState) {
-        _logs.add('--- retrying Aether ---');
-      }
     });
+    _setStatus('Resolving bundled binary...');
+    if (preserveRetryState) {
+      _appendLog('[status] --- retrying Aether ---');
+    }
 
     await _saveProfile();
 
@@ -214,26 +247,20 @@ class _PrismHomePageState extends State<PrismHomePage> {
       );
 
       _pid = result.pid;
-      _status = 'Running';
+      _setStatus('Running');
       _logSub = result.logs.listen((String line) {
         _retrySupervisor.recordLog(line);
-        if (!mounted) return;
-        setState(() {
-          _logs.add(line);
-        });
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_logScrollController.hasClients) {
-            _logScrollController.jumpTo(_logScrollController.position.maxScrollExtent);
-          }
-        });
+        _appendLog(line);
       });
 
       _eventSub = result.events.listen((ProcessEvent event) async {
         if (!mounted) return;
         if (event.message != null) {
-          setState(() {
-            _logs.add(event.message!);
-          });
+          _appendLog(
+            event.type == ProcessEventType.error
+                ? '[error] ${event.message!}'
+                : event.message!,
+          );
         }
 
         if (event.type == ProcessEventType.exited) {
@@ -246,8 +273,8 @@ class _PrismHomePageState extends State<PrismHomePage> {
           if (signal.shouldRetry && _autoRetryEnabled) {
             setState(() {
               _running = false;
-              _status = 'Disconnected, retrying...';
             });
+            _setStatus('Disconnected, retrying...');
             _retryTimer?.cancel();
             _retryTimer = Timer(_retrySupervisor.retryDelay(), () async {
               if (!mounted || _stopRequested) return;
@@ -256,21 +283,19 @@ class _PrismHomePageState extends State<PrismHomePage> {
           } else {
             setState(() {
               _running = false;
-              _status = signal.reason;
             });
+            _setStatus(signal.reason);
           }
         } else if (event.type == ProcessEventType.error) {
-          setState(() {
-            _status = event.message ?? 'Launcher error';
-          });
+          _setStatus(event.message ?? 'Launcher error', tag: 'error');
         }
       });
     } catch (e) {
       setState(() {
         _running = false;
         _pid = null;
-        _status = 'Start failed: $e';
       });
+      _setStatus('Start failed: $e', tag: 'error');
     }
   }
 
@@ -285,9 +310,7 @@ class _PrismHomePageState extends State<PrismHomePage> {
     if (!_running) return;
     _stopRequested = true;
     _retryTimer?.cancel();
-    setState(() {
-      _status = 'Stopping...';
-    });
+    _setStatus('Stopping...');
 
     try {
       await _launcher.stop(force: force);
@@ -300,8 +323,8 @@ class _PrismHomePageState extends State<PrismHomePage> {
       setState(() {
         _running = false;
         _pid = null;
-        _status = force ? 'Stopped hard' : 'Stopped';
       });
+      _setStatus(force ? 'Stopped hard' : 'Stopped');
     }
   }
 
@@ -316,7 +339,7 @@ class _PrismHomePageState extends State<PrismHomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aether Prism v1.0.7'),
+        title: const Text('Aether Prism v1.0.8'),
         actions: <Widget>[
           Center(
             child: Padding(
@@ -381,6 +404,40 @@ class _PrismHomePageState extends State<PrismHomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          _panel(
+            title: 'Controls',
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: <Widget>[
+                FilledButton(
+                  onPressed: _running ? null : _start,
+                  child: const Text('Start'),
+                ),
+                FilledButton.tonal(
+                  onPressed: _running ? _stop : null,
+                  child: const Text('Stop'),
+                ),
+                OutlinedButton(
+                  onPressed: _restart,
+                  child: const Text('Restart'),
+                ),
+                OutlinedButton(
+                  onPressed: _running ? () => _stop(force: true) : null,
+                  child: const Text('Force stop'),
+                ),
+                OutlinedButton(
+                  onPressed: _saveProfile,
+                  child: const Text('Save profile'),
+                ),
+                OutlinedButton(
+                  onPressed: _exportProfile,
+                  child: const Text('Export JSON'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           _panel(
             title: 'Launcher',
             child: Column(
@@ -519,40 +576,6 @@ class _PrismHomePageState extends State<PrismHomePage> {
           ),
           const SizedBox(height: 12),
           _panel(
-            title: 'Controls',
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: <Widget>[
-                FilledButton(
-                  onPressed: _running ? null : _start,
-                  child: const Text('Start'),
-                ),
-                FilledButton.tonal(
-                  onPressed: _running ? _stop : null,
-                  child: const Text('Stop'),
-                ),
-                OutlinedButton(
-                  onPressed: _restart,
-                  child: const Text('Restart'),
-                ),
-                OutlinedButton(
-                  onPressed: _running ? () => _stop(force: true) : null,
-                  child: const Text('Force stop'),
-                ),
-                OutlinedButton(
-                  onPressed: _saveProfile,
-                  child: const Text('Save profile'),
-                ),
-                OutlinedButton(
-                  onPressed: _exportProfile,
-                  child: const Text('Export JSON'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _panel(
             title: 'Import JSON',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -608,9 +631,6 @@ class _PrismHomePageState extends State<PrismHomePage> {
         height: 420,
         child: ListView.builder(
           controller: _logScrollController,
-          primary: false,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
           itemCount: _logs.isEmpty ? 1 : _logs.length,
           itemBuilder: (BuildContext context, int index) {
             if (_logs.isEmpty) {
