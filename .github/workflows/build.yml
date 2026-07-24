@@ -54,7 +54,7 @@ jobs:
             asset_name: AetherPrism-macos.zip
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -66,14 +66,14 @@ jobs:
 
       - name: Cache Gradle
         if: matrix.target == 'apk'
-        uses: actions/cache@v5.1.0
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/*.gradle*') }}
           restore-keys: |
-            $${{ runner.os }}-gradle-
+            ${{ runner.os }}-gradle-
 
       - name: Stage bundled Aether binary
         shell: bash
@@ -217,7 +217,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - id: release_version
         shell: bash
@@ -252,11 +252,11 @@ jobs:
             done
           } > release-notes.md
 
-      - name: Publish prerelease
+      - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.release_version.outputs.version }}
           name: v${{ steps.release_version.outputs.version }}
-          prerelease: true
+          prerelease: false
           body_path: release-notes.md
           files: release-assets/**/*
