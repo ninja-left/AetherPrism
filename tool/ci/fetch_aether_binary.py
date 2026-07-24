@@ -10,6 +10,8 @@ import shutil
 import sys
 import tarfile
 import tempfile
+import time
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -29,17 +31,43 @@ ASSET_MAP = {
 }
 
 
+def _retry_403(operation, description: str):
+    attempts = 3
+    for attempt in range(1, attempts + 1):
+        try:
+            return operation()
+        except urllib.error.HTTPError as exc:
+            if exc.code != 403 or attempt == attempts:
+                raise
+            print(f"Got 403 while {description}; retrying in 6 seconds ({attempt}/{attempts - 1})", file=sys.stderr)
+            time.sleep(6)
+
+
 def _download_json(url: str) -> dict:
     request = urllib.request.Request(url, headers={"User-Agent": "AetherPrism CI"})
-    with urllib.request.urlopen(request) as response:
-        return json.loads(response.read().decode("utf-8"))
+
+    def _op() -> dict:
+        with urllib.request.urlopen(request) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    return _retry_403(_op, f"fetching {url}")
 
 
 def _download_file(url: str, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     request = urllib.request.Request(url, headers={"User-Agent": "AetherPrism CI"})
-    with urllib.request.urlopen(request) as response, destination.open("wb") as out:
-        shutil.copyfileobj(response, out)
+
+    def _op() -> None:
+        tmp_destination = destination.with_suffix(destination.suffix + ".part")
+        try:
+            with urllib.request.urlopen(request) as response, tmp_destination.open("wb") as out:
+                shutil.copyfileobj(response, out)
+            tmp_destination.replace(destination)
+        finally:
+            if tmp_destination.exists() and not destination.exists():
+                tmp_destination.unlink(missing_ok=True)
+
+    _retry_403(_op, f"downloading {url}")
 
 
 def _find_release_asset(release: dict, asset_name: str) -> dict:
