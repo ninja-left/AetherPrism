@@ -209,7 +209,7 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "release-assets/${{ matrix.asset_name }}"
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.target }}
           path: release-assets/**/*
@@ -233,7 +233,7 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           path: release-assets
 
@@ -260,7 +260,7 @@ jobs:
           } > release-notes.md
 
       - name: Publish release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.release_version.outputs.version }}
           name: v${{ steps.release_version.outputs.version }}
