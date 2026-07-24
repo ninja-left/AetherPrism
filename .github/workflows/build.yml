@@ -75,33 +75,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Stage bundled Aether binary
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p assets/runtime
-          case "${{ matrix.target }}" in
-            apk)
-              python tool/ci/fetch_aether_binary.py --platform android --arch arm64 --output assets/runtime/android/arm64-v8a/aether
-              python tool/ci/fetch_aether_binary.py --platform android --arch armv7 --output assets/runtime/android/armeabi-v7a/aether
-              python tool/ci/fetch_aether_binary.py --platform android --arch x86_64 --output assets/runtime/android/x86_64/aether
-              ;;
-            linux)
-              python tool/ci/fetch_aether_binary.py --platform linux --arch x86_64 --output assets/runtime/linux/x86_64/aether
-              ;;
-            windows)
-              python tool/ci/fetch_aether_binary.py --platform windows --arch x86_64 --output assets/runtime/windows/x86_64/aether.exe
-              ;;
-            macos)
-              ARCH="$(uname -m)"
-              case "$ARCH" in
-                arm64) AETHER_ARCH=arm64 ;;
-                x86_64) AETHER_ARCH=x86_64 ;;
-                *) echo "Unsupported macOS architecture: $ARCH"; exit 1 ;;
-              esac
-              python tool/ci/fetch_aether_binary.py --platform macos --arch "$AETHER_ARCH" --output "assets/runtime/macos/$AETHER_ARCH/aether"
-              ;;
-          esac
 
       - run: flutter pub get
 
@@ -136,6 +109,40 @@ jobs:
             libstdc++-12-dev
 
       - run: flutter test
+
+      - name: Stage bundled Aether binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets/runtime
+          case "${{ matrix.target }}" in
+            apk)
+              python tool/ci/fetch_aether_binary.py --platform android --arch arm64 --output assets/runtime/android/arm64-v8a/aether
+              python tool/ci/fetch_aether_binary.py --platform android --arch armv7 --output assets/runtime/android/armeabi-v7a/aether
+              python tool/ci/fetch_aether_binary.py --platform android --arch x86_64 --output assets/runtime/android/x86_64/aether
+              test -f assets/runtime/android/arm64-v8a/aether
+              test -f assets/runtime/android/armeabi-v7a/aether
+              test -f assets/runtime/android/x86_64/aether
+              ;;
+            linux)
+              python tool/ci/fetch_aether_binary.py --platform linux --arch x86_64 --output assets/runtime/linux/x86_64/aether
+              test -f assets/runtime/linux/x86_64/aether
+              ;;
+            windows)
+              python tool/ci/fetch_aether_binary.py --platform windows --arch x86_64 --output assets/runtime/windows/x86_64/aether.exe
+              test -f assets/runtime/windows/x86_64/aether.exe
+              ;;
+            macos)
+              ARCH="$(uname -m)"
+              case "$ARCH" in
+                arm64) AETHER_ARCH=arm64 ;;
+                x86_64) AETHER_ARCH=x86_64 ;;
+                *) echo "Unsupported macOS architecture: $ARCH"; exit 1 ;;
+              esac
+              python tool/ci/fetch_aether_binary.py --platform macos --arch "$AETHER_ARCH" --output "assets/runtime/macos/$AETHER_ARCH/aether"
+              test -f "assets/runtime/macos/$AETHER_ARCH/aether"
+              ;;
+          esac
 
       - name: Build Android package
         if: matrix.target == 'apk'
@@ -226,7 +233,7 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: release-assets
 
