@@ -75,7 +75,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-
       - run: flutter pub get
 
       - name: Generate platform folders
@@ -110,69 +109,52 @@ jobs:
 
       - run: flutter test
 
-      - name: Stage bundled Aether binary
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p assets/runtime
-          case "${{ matrix.target }}" in
-            apk)
-              python tool/ci/fetch_aether_binary.py --platform android --arch arm64 --output assets/runtime/android/arm64-v8a/aether
-              python tool/ci/fetch_aether_binary.py --platform android --arch armv7 --output assets/runtime/android/armeabi-v7a/aether
-              python tool/ci/fetch_aether_binary.py --platform android --arch x86_64 --output assets/runtime/android/x86_64/aether
-              test -f assets/runtime/android/arm64-v8a/aether
-              test -f assets/runtime/android/armeabi-v7a/aether
-              test -f assets/runtime/android/x86_64/aether
-              ;;
-            linux)
-              python tool/ci/fetch_aether_binary.py --platform linux --arch x86_64 --output assets/runtime/linux/x86_64/aether
-              test -f assets/runtime/linux/x86_64/aether
-              ;;
-            windows)
-              python tool/ci/fetch_aether_binary.py --platform windows --arch x86_64 --output assets/runtime/windows/x86_64/aether.exe
-              test -f assets/runtime/windows/x86_64/aether.exe
-              ;;
-            macos)
-              ARCH="$(uname -m)"
-              case "$ARCH" in
-                arm64) AETHER_ARCH=arm64 ;;
-                x86_64) AETHER_ARCH=x86_64 ;;
-                *) echo "Unsupported macOS architecture: $ARCH"; exit 1 ;;
-              esac
-              python tool/ci/fetch_aether_binary.py --platform macos --arch "$AETHER_ARCH" --output "assets/runtime/macos/$AETHER_ARCH/aether"
-              test -f "assets/runtime/macos/$AETHER_ARCH/aether"
-              ;;
-          esac
-
       - name: Build Android package
         if: matrix.target == 'apk'
         shell: bash
         run: |
-          mkdir -p release-assets
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            if [[ -z "${ANDROID_KEYSTORE_BASE64}" || -z "${ANDROID_KEYSTORE_PASSWORD}" || -z "${ANDROID_KEY_ALIAS}" || -z "${ANDROID_KEY_PASSWORD}" ]]; then
-              echo "Missing Android signing secrets. Set ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD in GitHub Secrets."
-              exit 1
-            fi
-            flutter build apk --release
-            cp build/app/outputs/flutter-apk/app-release.apk "release-assets/${{ matrix.asset_name }}"
-
-            flutter build apk --release --split-per-abi
-            for file in build/app/outputs/flutter-apk/app-*-release.apk; do
-              [ -e "$file" ] || continue
-              base="$(basename "$file")"
-              abi="${base#app-}"
-              abi="${abi%-release.apk}"
-              cp "$file" "release-assets/AetherPrism-android-${abi}.apk"
-            done
-          else
-            flutter build apk --debug
-            cp build/app/outputs/flutter-apk/app-debug.apk "release-assets/AetherPrism-android-debug.apk"
+          set -euo pipefail
+          if [[ -z "${ANDROID_KEYSTORE_BASE64}" ]]; then
+            echo "Missing Android signing secrets: ANDROID_KEYSTORE_BASE64"
+            exit 1
+          elif [[ -z "${ANDROID_KEYSTORE_PASSWORD}" ]]; then
+            echo "Missing Android signing secrets: ANDROID_KEYSTORE_PASSWORD"
+            exit 1
+          elif [[ -z "${ANDROID_KEY_ALIAS}" ]]; then
+            echo "Missing Android signing secrets: ANDROID_KEY_ALIAS"
+            exit 1
+          elif [[ -z "${ANDROID_KEY_PASSWORD}" ]]; then
+            echo "Missing Android signing secrets: ANDROID_KEY_PASSWORD"
+            exit 1
           fi
+          mkdir -p assets/runtime release-assets
+          python tool/ci/fetch_aether_binary.py --platform android --arch arm64 --output assets/runtime/android/arm64-v8a/aether
+          python tool/ci/fetch_aether_binary.py --platform android --arch armv7 --output assets/runtime/android/armeabi-v7a/aether
+          python tool/ci/fetch_aether_binary.py --platform android --arch x86_64 --output assets/runtime/android/x86_64/aether
+          test -f assets/runtime/android/arm64-v8a/aether
+          test -f assets/runtime/android/armeabi-v7a/aether
+          test -f assets/runtime/android/x86_64/aether
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk "release-assets/${{ matrix.asset_name }}"
+
+          flutter build apk --release --split-per-abi
+          for file in build/app/outputs/flutter-apk/app-*-release.apk; do
+            [ -e "$file" ] || continue
+            base="$(basename "$file")"
+            abi="${base#app-}"
+            abi="${abi%-release.apk}"
+            cp "$file" "release-assets/AetherPrism-android-${abi}.apk"
+          done
 
       - name: Build Linux
         if: matrix.target == 'linux'
-        run: flutter build linux --release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets/runtime
+          python tool/ci/fetch_aether_binary.py --platform linux --arch x86_64 --output assets/runtime/linux/x86_64/aether
+          test -f assets/runtime/linux/x86_64/aether
+          flutter build linux --release
 
       - name: Stage Linux artifact
         if: matrix.target == 'linux'
@@ -183,7 +165,12 @@ jobs:
 
       - name: Build Windows
         if: matrix.target == 'windows'
-        run: flutter build windows --release
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force assets/runtime | Out-Null
+          python tool/ci/fetch_aether_binary.py --platform windows --arch x86_64 --output assets/runtime/windows/x86_64/aether.exe
+          if (-not (Test-Path assets/runtime/windows/x86_64/aether.exe)) { throw 'Missing Windows Aether binary after staging.' }
+          flutter build windows --release
 
       - name: Stage Windows artifact
         if: matrix.target == 'windows'
@@ -194,7 +181,19 @@ jobs:
 
       - name: Build macOS
         if: matrix.target == 'macos'
-        run: flutter build macos --release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets/runtime
+          ARCH="$(uname -m)"
+          case "$ARCH" in
+            arm64) AETHER_ARCH=arm64 ;;
+            x86_64) AETHER_ARCH=x86_64 ;;
+            *) echo "Unsupported macOS architecture: $ARCH"; exit 1 ;;
+          esac
+          python tool/ci/fetch_aether_binary.py --platform macos --arch "$AETHER_ARCH" --output "assets/runtime/macos/$AETHER_ARCH/aether"
+          test -f "assets/runtime/macos/$AETHER_ARCH/aether"
+          flutter build macos --release
 
       - name: Stage macOS artifact
         if: matrix.target == 'macos'
