@@ -4,6 +4,7 @@
 - Upgraded GitHub Actions references to newer major versions to avoid Node.js deprecation warnings.
 - Changed the 403 retry delay to 6 seconds with two retries before giving up.
 - Moved CI aether download to pre-packaging step
+- Added aether binaries asset paths for each platform
 
 ## v1.0.7
 - Switched the launcher to a shipped-binary model instead of asking for a binary path.
