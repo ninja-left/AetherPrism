@@ -152,7 +152,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p assets/runtime
+          python tool/ci/fetch_aether_binary.py --platform linux --arch arm64 --output assets/runtime/linux/arm64/aether
           python tool/ci/fetch_aether_binary.py --platform linux --arch x86_64 --output assets/runtime/linux/x86_64/aether
+          test -f assets/runtime/linux/arm64/aether
           test -f assets/runtime/linux/x86_64/aether
           flutter build linux --release
 
@@ -185,14 +187,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p assets/runtime
-          ARCH="$(uname -m)"
-          case "$ARCH" in
-            arm64) AETHER_ARCH=arm64 ;;
-            x86_64) AETHER_ARCH=x86_64 ;;
-            *) echo "Unsupported macOS architecture: $ARCH"; exit 1 ;;
-          esac
-          python tool/ci/fetch_aether_binary.py --platform macos --arch "$AETHER_ARCH" --output "assets/runtime/macos/$AETHER_ARCH/aether"
-          test -f "assets/runtime/macos/$AETHER_ARCH/aether"
+          python tool/ci/fetch_aether_binary.py --platform macos --arch arm64 --output assets/runtime/macos/arm64/aether
+          python tool/ci/fetch_aether_binary.py --platform macos --arch x86_64 --output assets/runtime/macos/x86_64/aether
+          test -f assets/runtime/macos/arm64/aether
+          test -f assets/runtime/macos/x86_64/aether
           flutter build macos --release
 
       - name: Stage macOS artifact

@@ -35,4 +35,27 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   assets:
-    - assets/runtime/
+    - path: assets/runtime/android/arm64-v8a/aether
+      platforms:
+        - android
+    - path: assets/runtime/android/armeabi-v7a/aether
+      platforms:
+        - android
+    - path: assets/runtime/android/x86_64/aether
+      platforms:
+        - android
+    - path: assets/runtime/linux/arm64/aether
+      platforms:
+        - linux
+    - path: assets/runtime/linux/x86_64/aether
+      platforms:
+        - linux
+    - path: assets/runtime/windows/x86_64/aether.exe
+      platforms:
+        - windows
+    - path: assets/runtime/macos/arm64/aether
+      platforms:
+        - macos
+    - path: assets/runtime/macos/x86_64/aether
+      platforms:
+        - macos
