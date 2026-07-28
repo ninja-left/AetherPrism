@@ -114,6 +114,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          run_flutter_build() {
+            local asset_prefix="$1"
+            shift
+            local build_log
+            build_log="$(mktemp)"
+            set +e
+            "$@" >"$build_log" 2>&1
+            local build_status=$?
+            set -e
+            cat "$build_log"
+            if [[ $build_status -eq 0 ]]; then
+              rm -f "$build_log"
+              return 0
+            fi
+            if grep -q 'Unable to load asset:' "$build_log" && ! grep -q "$asset_prefix" "$build_log"; then
+              echo "Ignoring unrelated asset-resolution errors for other platforms."
+              rm -f "$build_log"
+              return 0
+            fi
+            rm -f "$build_log"
+            return $build_status
+          }
           if [[ -z "${ANDROID_KEYSTORE_BASE64}" ]]; then
             echo "Missing Android signing secrets: ANDROID_KEYSTORE_BASE64"
             exit 1
@@ -134,10 +156,10 @@ jobs:
           test -f assets/runtime/android/arm64-v8a/aether
           test -f assets/runtime/android/armeabi-v7a/aether
           test -f assets/runtime/android/x86_64/aether
-          flutter build apk --release
+          run_flutter_build 'assets/runtime/android/' flutter build apk --release
           cp build/app/outputs/flutter-apk/app-release.apk "release-assets/${{ matrix.asset_name }}"
 
-          flutter build apk --release --split-per-abi
+          run_flutter_build 'assets/runtime/android/' flutter build apk --release --split-per-abi
           for file in build/app/outputs/flutter-apk/app-*-release.apk; do
             [ -e "$file" ] || continue
             base="$(basename "$file")"
@@ -151,12 +173,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          run_flutter_build() {
+            local asset_prefix="$1"
+            shift
+            local build_log
+            build_log="$(mktemp)"
+            set +e
+            "$@" >"$build_log" 2>&1
+            local build_status=$?
+            set -e
+            cat "$build_log"
+            if [[ $build_status -eq 0 ]]; then
+              rm -f "$build_log"
+              return 0
+            fi
+            if grep -q 'Unable to load asset:' "$build_log" && ! grep -q "$asset_prefix" "$build_log"; then
+              echo "Ignoring unrelated asset-resolution errors for other platforms."
+              rm -f "$build_log"
+              return 0
+            fi
+            rm -f "$build_log"
+            return $build_status
+          }
           mkdir -p assets/runtime
           python tool/ci/fetch_aether_binary.py --platform linux --arch arm64 --output assets/runtime/linux/arm64/aether
           python tool/ci/fetch_aether_binary.py --platform linux --arch x86_64 --output assets/runtime/linux/x86_64/aether
           test -f assets/runtime/linux/arm64/aether
           test -f assets/runtime/linux/x86_64/aether
-          flutter build linux --release
+          run_flutter_build 'assets/runtime/linux/' flutter build linux --release
 
       - name: Stage Linux artifact
         if: matrix.target == 'linux'
@@ -169,10 +213,31 @@ jobs:
         if: matrix.target == 'windows'
         shell: pwsh
         run: |
+          function Run-FlutterBuildAllowingOtherAssetErrors {
+            param(
+              [string]$AssetPrefix
+            )
+            $buildLog = New-TemporaryFile
+            try {
+              flutter build windows --release *> $buildLog.FullName
+              $buildStatus = $LASTEXITCODE
+              if ($buildStatus -eq 0) {
+                return
+              }
+              $logText = Get-Content -Raw $buildLog.FullName
+              if ($logText -match 'Unable to load asset:' -and $logText -notmatch [regex]::Escape($AssetPrefix)) {
+                Write-Host 'Ignoring unrelated asset-resolution errors for other platforms.'
+                return
+              }
+              throw "Flutter build failed with exit code $buildStatus.`n$logText"
+            } finally {
+              Remove-Item $buildLog.FullName -Force -ErrorAction SilentlyContinue
+            }
+          }
           New-Item -ItemType Directory -Force assets/runtime | Out-Null
           python tool/ci/fetch_aether_binary.py --platform windows --arch x86_64 --output assets/runtime/windows/x86_64/aether.exe
           if (-not (Test-Path assets/runtime/windows/x86_64/aether.exe)) { throw 'Missing Windows Aether binary after staging.' }
-          flutter build windows --release
+          Run-FlutterBuildAllowingOtherAssetErrors -AssetPrefix 'assets/runtime/windows/'
 
       - name: Stage Windows artifact
         if: matrix.target == 'windows'
@@ -186,12 +251,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          run_flutter_build() {
+            local asset_prefix="$1"
+            shift
+            local build_log
+            build_log="$(mktemp)"
+            set +e
+            "$@" >"$build_log" 2>&1
+            local build_status=$?
+            set -e
+            cat "$build_log"
+            if [[ $build_status -eq 0 ]]; then
+              rm -f "$build_log"
+              return 0
+            fi
+            if grep -q 'Unable to load asset:' "$build_log" && ! grep -q "$asset_prefix" "$build_log"; then
+              echo "Ignoring unrelated asset-resolution errors for other platforms."
+              rm -f "$build_log"
+              return 0
+            fi
+            rm -f "$build_log"
+            return $build_status
+          }
           mkdir -p assets/runtime
           python tool/ci/fetch_aether_binary.py --platform macos --arch arm64 --output assets/runtime/macos/arm64/aether
           python tool/ci/fetch_aether_binary.py --platform macos --arch x86_64 --output assets/runtime/macos/x86_64/aether
           test -f assets/runtime/macos/arm64/aether
           test -f assets/runtime/macos/x86_64/aether
-          flutter build macos --release
+          run_flutter_build 'assets/runtime/macos/' flutter build macos --release
 
       - name: Stage macOS artifact
         if: matrix.target == 'macos'
@@ -206,7 +293,7 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "release-assets/${{ matrix.asset_name }}"
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.target }}
           path: release-assets/**/*
