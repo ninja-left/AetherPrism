@@ -37,10 +37,10 @@ def _retry_403(operation, description: str):
         try:
             return operation()
         except urllib.error.HTTPError as exc:
-            if exc.code != 403 or attempt == attempts:
+            if attempt == attempts:
                 raise
-            print(f"Got 403 while {description}; retrying in 6 seconds ({attempt}/{attempts - 1})", file=sys.stderr)
-            time.sleep(6)
+            print(f"Got an HTTP error while {description}; retrying in 33 seconds ({attempt}/{attempts - 1})", file=sys.stderr)
+            time.sleep(33)
 
 
 def _download_json(url: str) -> dict:
